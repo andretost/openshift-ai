@@ -1,0 +1,22 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: llama-cpp-route
+  namespace: andre-llama-cpp
+  labels:
+    app: llama-cpp
+    component: route
+  annotations:
+    haproxy.router.openshift.io/timeout: 3h
+    haproxy.router.openshift.io/balance: source
+spec:
+  to:
+    kind: Service
+    name: llama-cpp-service
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None

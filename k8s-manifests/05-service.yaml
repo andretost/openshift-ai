@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: llama-cpp-service
+  namespace: andre-llama-cpp
+  labels:
+    app: llama-cpp
+    component: service
+spec:
+  type: ClusterIP
+  selector:
+    app: llama-cpp
+    component: server
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3 hours for long-running inference

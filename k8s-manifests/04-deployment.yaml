@@ -1,0 +1,204 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llama-cpp-server
+  namespace: andre-llama-cpp
+  labels:
+    app: llama-cpp
+    component: server
+    model: mistral-7b
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: llama-cpp
+      component: server
+  template:
+    metadata:
+      labels:
+        app: llama-cpp
+        component: server
+        model: mistral-7b
+    spec:
+      # Init container to download the model
+      initContainers:
+      - name: model-downloader
+        image: curlimages/curl:latest
+        command:
+        - sh
+        - -c
+        - |
+          set -e
+          echo "Starting model download..."
+          
+          MODEL_FILE="${HF_MODEL_FILE}"
+          MODEL_PATH="/models/${MODEL_FILE}"
+          
+          # Check if model already exists
+          if [ -f "${MODEL_PATH}" ]; then
+            echo "Model already exists at ${MODEL_PATH}"
+            echo "File size: $(du -h ${MODEL_PATH} | cut -f1)"
+            exit 0
+          fi
+          
+          echo "Downloading ${MODEL_FILE} from Hugging Face..."
+          echo "Repository: ${HF_REPO}"
+          
+          # Construct Hugging Face URL
+          HF_URL="https://huggingface.co/${HF_REPO}/resolve/main/${MODEL_FILE}"
+          
+          echo "Download URL: ${HF_URL}"
+          echo "Target path: ${MODEL_PATH}"
+          
+          # Download with progress and resume capability
+          curl -L \
+            --progress-bar \
+            --retry 5 \
+            --retry-delay 10 \
+            --continue-at - \
+            -o "${MODEL_PATH}" \
+            "${HF_URL}"
+          
+          echo "Download complete!"
+          echo "File size: $(du -h ${MODEL_PATH} | cut -f1)"
+          echo "Verifying file..."
+          ls -lh "${MODEL_PATH}"
+        env:
+        - name: HF_REPO
+          valueFrom:
+            configMapKeyRef:
+              name: llama-cpp-config
+              key: HF_REPO
+        - name: HF_MODEL_FILE
+          valueFrom:
+            configMapKeyRef:
+              name: llama-cpp-config
+              key: HF_MODEL_FILE
+        volumeMounts:
+        - name: model-storage
+          mountPath: /models
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+      
+      # Main container running llama.cpp server
+      containers:
+      - name: llama-cpp-server
+        # Using the official llama.cpp server image with CUDA support
+        image: ghcr.io/ggerganov/llama.cpp:server-cuda
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        env:
+        - name: MODEL_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: llama-cpp-config
+              key: MODEL_PATH
+        - name: HOST
+          valueFrom:
+            configMapKeyRef:
+              name: llama-cpp-config
+              key: HOST
+        - name: PORT
+          valueFrom:
+            configMapKeyRef:
+              name: llama-cpp-config
+              key: PORT
+        - name: N_GPU_LAYERS
+          valueFrom:
+            configMapKeyRef:
+              name: llama-cpp-config
+              key: N_GPU_LAYERS
+        - name: N_CTX
+          valueFrom:
+            configMapKeyRef:
+              name: llama-cpp-config
+              key: N_CTX
+        - name: N_PARALLEL
+          valueFrom:
+            configMapKeyRef:
+              name: llama-cpp-config
+              key: N_PARALLEL
+        - name: N_THREADS
+          valueFrom:
+            configMapKeyRef:
+              name: llama-cpp-config
+              key: N_THREADS
+        command:
+        - /server
+        args:
+        - --model
+        - $(MODEL_PATH)
+        - --host
+        - $(HOST)
+        - --port
+        - $(PORT)
+        - --n-gpu-layers
+        - $(N_GPU_LAYERS)
+        - --ctx-size
+        - $(N_CTX)
+        - --parallel
+        - $(N_PARALLEL)
+        - --threads
+        - $(N_THREADS)
+        - --metrics
+        - --log-format
+        - json
+        volumeMounts:
+        - name: model-storage
+          mountPath: /models
+          readOnly: true
+        resources:
+          requests:
+            memory: "16Gi"
+            cpu: "4"
+            nvidia.com/gpu: "1"
+          limits:
+            memory: "24Gi"
+            cpu: "8"
+            nvidia.com/gpu: "1"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+      
+      volumes:
+      - name: model-storage
+        persistentVolumeClaim:
+          claimName: model-storage
+      
+      # Tolerations for GPU nodes
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+      
+      # Node selector for GPU nodes (adjust based on your cluster labels)
+      nodeSelector:
+        nvidia.com/gpu.present: "true"

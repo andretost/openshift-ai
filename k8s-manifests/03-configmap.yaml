@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: llama-cpp-config
+  namespace: andre-llama-cpp
+  labels:
+    app: llama-cpp
+    component: config
+data:
+  # Model configuration
+  MODEL_PATH: "/models/mistral-7b-instruct-v0.2.Q4_K_M.gguf"
+  
+  # Server configuration
+  HOST: "0.0.0.0"
+  PORT: "8080"
+  
+  # Performance tuning
+  N_GPU_LAYERS: "35"  # Offload all layers to GPU
+  N_CTX: "8192"       # Context window size
+  N_PARALLEL: "4"     # Number of parallel requests
+  N_THREADS: "8"      # CPU threads for processing
+  
+  # Model parameters
+  TEMPERATURE: "0.7"
+  TOP_K: "40"
+  TOP_P: "0.9"
+  REPEAT_PENALTY: "1.1"
+  
+  # Hugging Face model details
+  HF_REPO: "TheBloke/Mistral-7B-Instruct-v0.2-GGUF"
+  HF_MODEL_FILE: "mistral-7b-instruct-v0.2.Q4_K_M.gguf"
