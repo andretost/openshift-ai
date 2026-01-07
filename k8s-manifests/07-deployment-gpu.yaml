@@ -1,27 +1,29 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: llama-cpp-server
+  name: llama-cpp-server-gpu
   namespace: andre-llama-cpp
   labels:
     app: llama-cpp
     component: server
     model: mistral-7b
+    accelerator: gpu
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: llama-cpp
       component: server
+      accelerator: gpu
   template:
     metadata:
       labels:
         app: llama-cpp
         component: server
         model: mistral-7b
-        accelerator: cpu
+        accelerator: gpu
     spec:
-      # Init container to download the model
+      # Init container to download the model (reuses existing model if present)
       initContainers:
       - name: model-downloader
         image: curlimages/curl:latest
@@ -86,11 +88,11 @@ spec:
             memory: "1Gi"
             cpu: "1000m"
       
-      # Main container running llama.cpp server (CPU-only)
+      # Main container running llama.cpp server with GPU acceleration
       containers:
       - name: llama-cpp-server
-        # Using llama.cpp server image (CPU-only)
-        image: ghcr.io/ggml-org/llama.cpp:server
+        # Using llama.cpp server image with CUDA support
+        image: ghcr.io/ggml-org/llama.cpp:server-cuda
         ports:
         - containerPort: 8080
           name: http
@@ -111,6 +113,11 @@ spec:
             configMapKeyRef:
               name: llama-cpp-config
               key: PORT
+        - name: N_GPU_LAYERS
+          valueFrom:
+            configMapKeyRef:
+              name: llama-cpp-config
+              key: N_GPU_LAYERS
         - name: N_CTX
           valueFrom:
             configMapKeyRef:
@@ -133,6 +140,8 @@ spec:
         - $(HOST)
         - --port
         - $(PORT)
+        - --n-gpu-layers
+        - $(N_GPU_LAYERS)
         - --ctx-size
         - $(N_CTX)
         - --parallel
@@ -146,11 +155,13 @@ spec:
           readOnly: true
         resources:
           requests:
-            memory: "8Gi"
-            cpu: "4"
-          limits:
             memory: "16Gi"
+            cpu: "4"
+            nvidia.com/gpu: "1"
+          limits:
+            memory: "24Gi"
             cpu: "8"
+            nvidia.com/gpu: "1"
         livenessProbe:
           httpGet:
             path: /health
@@ -180,3 +191,13 @@ spec:
       - name: model-storage
         persistentVolumeClaim:
           claimName: model-storage-rwx
+      
+      # Tolerations for GPU nodes
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+      
+      # Node selector for GPU nodes
+      nodeSelector:
+        nvidia.com/gpu.present: "true"

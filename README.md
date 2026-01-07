@@ -1,330 +1,227 @@
-# Mistral 7B Deployment with llama.cpp on OpenShift AI
+# LLM Deployment with llama.cpp on OpenShift
 
-Deploy and run Mistral 7B large language model using llama.cpp on OpenShift with GPU acceleration.
+Deploy and run large language models using llama.cpp on OpenShift with optional GPU acceleration.
 
-## Overview
+## 📚 Complete Documentation
 
-This repository contains everything needed to deploy Mistral 7B Instruct v0.2 on OpenShift using llama.cpp server with GPU support. The deployment includes:
+**→ [COMPLETE DEPLOYMENT GUIDE](COMPLETE-DEPLOYMENT-GUIDE.md)** - Comprehensive guide with step-by-step instructions, all lessons learned, common pitfalls, and solutions. **Start here for your first deployment!**
 
-- **Model**: Mistral 7B Instruct v0.2 (GGUF format, Q4_K_M quantization)
-- **Runtime**: llama.cpp server with CUDA support
-- **Storage**: 30GB PersistentVolumeClaim for model files
-- **Namespace**: `andre-llama-cpp`
-- **GPU**: NVIDIA GPU acceleration (1 GPU required)
-- **API**: OpenAI-compatible REST API
+### Additional Documentation
+- [Usage Guide](USAGE.md) - How to interact with the deployed model
+- [Deployment Summary](DEPLOYMENT-SUMMARY.md) - Architecture and components overview
+- [Service Routing Fix](SERVICE-ROUTING-FIX.md) - Technical details on service selector fix
 
-## Architecture
+## 🚀 Quick Start
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    OpenShift Cluster                     │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │         Namespace: andre-llama-cpp                │  │
-│  │                                                   │  │
-│  │  ┌─────────────┐      ┌──────────────────────┐  │  │
-│  │  │   Route     │─────▶│      Service         │  │  │
-│  │  │  (HTTPS)    │      │   (ClusterIP:8080)   │  │  │
-│  │  └─────────────┘      └──────────┬───────────┘  │  │
-│  │                                   │              │  │
-│  │                       ┌───────────▼───────────┐  │  │
-│  │                       │    Pod                │  │  │
-│  │                       │  ┌─────────────────┐  │  │  │
-│  │                       │  │ Init Container  │  │  │  │
-│  │                       │  │ (Model Download)│  │  │  │
-│  │                       │  └─────────────────┘  │  │  │
-│  │                       │  ┌─────────────────┐  │  │  │
-│  │                       │  │ llama.cpp       │  │  │  │
-│  │                       │  │ Server (GPU)    │  │  │  │
-│  │                       │  └─────────────────┘  │  │  │
-│  │                       └───────────┬───────────┘  │  │
-│  │                                   │              │  │
-│  │                       ┌───────────▼───────────┐  │  │
-│  │                       │   PVC (30GB)          │  │  │
-│  │                       │   Model Storage       │  │  │
-│  │                       └───────────────────────┘  │  │
-│  └───────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────┘
-```
+### Prerequisites
+- OpenShift cluster access with `oc` CLI configured
+- Storage class supporting ReadWriteMany (RWX) access mode
+- (Optional) GPU resources for acceleration
 
-## Prerequisites
+### Deploy in 3 Steps
 
-- OpenShift cluster with OpenShift AI 2.25.1 installed
-- Access to a namespace (or ability to create one)
-- NVIDIA GPU nodes available in the cluster
-- OpenShift CLI (`oc`) installed and configured
-- Logged in to your OpenShift cluster
+1. **Customize the configuration**
+   ```bash
+   # Edit namespace name
+   vi k8s-manifests/01-namespace.yaml
+   
+   # Edit model URL and settings
+   vi k8s-manifests/03-configmap.yaml
+   
+   # Update storage class name to your cluster's RWX storage class
+   vi k8s-manifests/02-pvc-rwx.yaml
+   ```
 
-## Quick Start
+2. **Deploy**
+   ```bash
+   # Deploy all components
+   oc apply -f k8s-manifests/
+   
+   # Or use the automated script
+   ./deploy.sh
+   ```
 
-### 1. Clone or Download This Repository
+3. **Access**
+   ```bash
+   # Get the route URL
+   oc get route llama-cpp-route -o jsonpath='{.spec.host}'
+   
+   # Open in browser or test with curl
+   curl https://<route-url>/v1/models
+   ```
 
-```bash
-git clone <repository-url>
-cd openshift-ai
-```
+## 🎯 What This Deploys
 
-### 2. Review Configuration
+- **CPU Deployment**: Baseline LLM inference using CPU
+- **GPU Deployment**: Accelerated inference using NVIDIA GPUs (optional)
+- **Persistent Storage**: 30GB RWX PVC for model storage
+- **Web UI**: Interactive chat interface at `https://<route-url>`
+- **API Endpoints**: OpenAI-compatible REST API
+- **Routes**: External HTTPS access to both deployments
 
-Check the ConfigMap settings in `k8s-manifests/03-configmap.yaml` and adjust if needed:
-- GPU layers to offload
-- Context window size
-- Number of parallel requests
-- Model parameters (temperature, top_k, etc.)
+## 📊 Features
 
-### 3. Deploy
+✅ **Dual Deployment**: Compare CPU vs GPU performance  
+✅ **Shared Storage**: Single model file used by both deployments  
+✅ **Auto-Download**: Models downloaded automatically on first run  
+✅ **Web Interface**: Built-in chat UI  
+✅ **API Compatible**: OpenAI-compatible endpoints  
+✅ **Production Ready**: Health checks, resource limits, proper routing  
 
-Run the deployment script:
-
-```bash
-./deploy.sh
-```
-
-This script will:
-1. Create the namespace `andre-llama-cpp`
-2. Create a 30GB PVC for model storage
-3. Deploy the ConfigMap with server settings
-4. Deploy the pod with init container (downloads ~4GB model)
-5. Create the Service and Route for API access
-
-### 4. Monitor Deployment
-
-Watch the deployment progress:
-
-```bash
-# Watch pod status
-oc get pods -n andre-llama-cpp -w
-
-# Monitor model download (init container)
-oc logs -n andre-llama-cpp -l app=llama-cpp -c model-downloader -f
-
-# Monitor server startup
-oc logs -n andre-llama-cpp -l app=llama-cpp -c llama-cpp-server -f
-```
-
-The model download takes 5-15 minutes depending on network speed. The server will start automatically once the model is downloaded.
-
-### 5. Test the Deployment
-
-Once the pod is running, test the API:
-
-```bash
-./test-api.sh
-```
-
-This script tests:
-- Health endpoint
-- Model information
-- Text completion
-- Chat completion (OpenAI-compatible)
-- Metrics endpoint
-
-## Usage
-
-### Get API URL
-
-```bash
-ROUTE_URL=$(oc get route llama-cpp-route -n andre-llama-cpp -o jsonpath='{.spec.host}')
-echo "API URL: https://${ROUTE_URL}"
-```
-
-### Simple Text Completion
-
-```bash
-curl -X POST https://${ROUTE_URL}/completion \
-  -H "Content-Type: application/json" \
-  -d '{
-    "prompt": "Explain quantum computing:",
-    "n_predict": 200
-  }'
-```
-
-### Chat Completion (OpenAI-compatible)
-
-```bash
-curl -X POST https://${ROUTE_URL}/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "mistral-7b",
-    "messages": [
-      {"role": "user", "content": "What is machine learning?"}
-    ]
-  }'
-```
-
-### Python Example
-
-```python
-from openai import OpenAI
-
-client = OpenAI(
-    base_url=f"https://{ROUTE_URL}/v1",
-    api_key="not-needed"
-)
-
-response = client.chat.completions.create(
-    model="mistral-7b",
-    messages=[
-        {"role": "user", "content": "Hello!"}
-    ]
-)
-
-print(response.choices[0].message.content)
-```
-
-For more examples and detailed usage instructions, see [USAGE.md](USAGE.md).
-
-## Files and Structure
+## 🏗️ Repository Structure
 
 ```
 .
-├── README.md                    # This file
-├── deployment-plan.md           # Detailed deployment architecture
-├── USAGE.md                     # Comprehensive usage guide
-├── deploy.sh                    # Automated deployment script
-├── test-api.sh                  # API testing script
-└── k8s-manifests/              # Kubernetes manifests
-    ├── 01-namespace.yaml        # Namespace definition
-    ├── 02-pvc.yaml             # PersistentVolumeClaim (30GB)
-    ├── 03-configmap.yaml       # Server configuration
-    ├── 04-deployment.yaml      # Main deployment with init container
-    ├── 05-service.yaml         # Service (ClusterIP)
-    └── 06-route.yaml           # Route (external access)
+├── k8s-manifests/
+│   ├── 01-namespace.yaml              # Namespace definition
+│   ├── 02-pvc-rwx.yaml                # ReadWriteMany PVC for model storage
+│   ├── 03-configmap.yaml              # Model URL and configuration
+│   ├── 04-deployment-cpu-only.yaml    # CPU-based deployment
+│   ├── 05-service.yaml                # CPU service
+│   ├── 06-route.yaml                  # CPU route
+│   ├── 07-deployment-gpu.yaml         # GPU-accelerated deployment
+│   ├── 08-service-gpu.yaml            # GPU service
+│   └── 09-route-gpu.yaml              # GPU route
+├── deploy.sh                          # Automated deployment script
+├── test-api.sh                        # API testing script
+├── COMPLETE-DEPLOYMENT-GUIDE.md       # 📖 Full guide with lessons learned
+├── USAGE.md                           # Usage instructions
+├── DEPLOYMENT-SUMMARY.md              # Architecture overview
+└── SERVICE-ROUTING-FIX.md             # Technical fix documentation
 ```
 
-## Configuration
+## 🔧 Quick Configuration
 
 ### Model Selection
+Default: **Mistral 7B Instruct v0.2** (Q4_K_M quantization, ~4GB)
 
-To use a different model or quantization:
+To use a different model, edit `k8s-manifests/03-configmap.yaml`:
+```yaml
+data:
+  MODEL_URL: "https://huggingface.co/<user>/<model>/resolve/main/<file>.gguf"
+  MODEL_NAME: "<file>.gguf"
+```
 
-1. Edit `k8s-manifests/03-configmap.yaml`
-2. Update `HF_REPO` and `HF_MODEL_FILE`
-3. Adjust `MODEL_PATH` accordingly
-4. Redeploy: `oc apply -f k8s-manifests/03-configmap.yaml`
-5. Restart: `oc rollout restart deployment llama-cpp-server -n andre-llama-cpp`
+Popular alternatives:
+- **TinyLlama 1.1B**: ~600MB, fast inference
+- **Llama 2 13B**: ~7GB, better quality
+- **Mixtral 8x7B**: ~26GB, highest quality
+
+### Storage Class
+Update `k8s-manifests/02-pvc-rwx.yaml` with your cluster's RWX storage class:
+```yaml
+spec:
+  storageClassName: your-rwx-storage-class  # e.g., ocs-storagecluster-cephfs, nfs-client
+```
+
+**Important**: Must support ReadWriteMany (RWX) access mode!
 
 ### GPU Configuration
-
-The deployment requests 1 NVIDIA GPU. To adjust:
-
-1. Edit `k8s-manifests/04-deployment.yaml`
-2. Modify `nvidia.com/gpu` in resources section
-3. Adjust `N_GPU_LAYERS` in ConfigMap (35 = all layers on GPU)
-
-### Resource Limits
-
-Default resources:
-- **CPU**: 4 cores (request), 8 cores (limit)
-- **Memory**: 16Gi (request), 24Gi (limit)
-- **GPU**: 1x NVIDIA GPU
-- **Storage**: 30GB PVC
-
-Adjust in `k8s-manifests/04-deployment.yaml` based on your needs.
-
-## Troubleshooting
-
-### Pod Not Starting
-
-```bash
-# Check pod status and events
-oc describe pod -n andre-llama-cpp -l app=llama-cpp
-
-# Check events
-oc get events -n andre-llama-cpp --sort-by='.lastTimestamp'
-```
-
-### Model Download Failed
-
-```bash
-# Check init container logs
-oc logs -n andre-llama-cpp -l app=llama-cpp -c model-downloader
-
-# Delete pod to retry
-oc delete pod -n andre-llama-cpp -l app=llama-cpp
-```
-
-### GPU Not Available
-
-```bash
-# Check GPU nodes
-oc describe node | grep -A 5 "nvidia.com/gpu"
-
-# Verify node selector matches your cluster
-oc get nodes --show-labels | grep gpu
-```
-
-### API Not Responding
-
-```bash
-# Check server logs
-oc logs -n andre-llama-cpp -l app=llama-cpp -c llama-cpp-server
-
-# Check service and route
-oc get svc,route -n andre-llama-cpp
-```
-
-## Performance Tuning
-
-### For Higher Throughput
-
-Increase parallel requests in ConfigMap:
+Adjust GPU layers in `k8s-manifests/03-configmap.yaml`:
 ```yaml
-N_PARALLEL: "8"  # Default: 4
+data:
+  GPU_LAYERS: "35"  # Number of layers to offload to GPU (0 = CPU only)
 ```
 
-### For Lower Latency
+## 🧪 Testing
 
-Reduce context size:
-```yaml
-N_CTX: "4096"  # Default: 8192
-```
-
-### For Lower Memory Usage
-
-Use a smaller quantization (edit ConfigMap):
-```yaml
-HF_MODEL_FILE: "mistral-7b-instruct-v0.2.Q3_K_M.gguf"  # Smaller than Q4
-```
-
-## Cleanup
-
-To remove the deployment:
-
+### Test API Endpoints
 ```bash
-# Delete entire namespace
-oc delete namespace andre-llama-cpp
+# Run automated tests
+./test-api.sh
 
-# Or delete individual resources
-oc delete -f k8s-manifests/ -n andre-llama-cpp
+# Or test manually
+CPU_ROUTE=$(oc get route llama-cpp-route -o jsonpath='{.spec.host}')
+curl https://${CPU_ROUTE}/v1/models
 ```
 
-## API Endpoints
+### Test Inference
+```bash
+curl https://${CPU_ROUTE}/v1/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "What is Kubernetes?",
+    "max_tokens": 100
+  }'
+```
 
-- `GET /health` - Health check
-- `POST /completion` - Text completion
-- `POST /v1/chat/completions` - Chat completion (OpenAI-compatible)
-- `GET /v1/models` - List models
-- `GET /metrics` - Prometheus metrics
+### Access Web UI
+```bash
+# Get URL
+oc get route llama-cpp-route -o jsonpath='{.spec.host}'
 
-See [USAGE.md](USAGE.md) for detailed API documentation.
+# Open in browser: https://<route-url>
+```
 
-## Resources
+## 📈 Performance
 
-- [llama.cpp GitHub](https://github.com/ggerganov/llama.cpp)
-- [Mistral AI Documentation](https://docs.mistral.ai/)
-- [OpenShift AI Documentation](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/)
-- [GGUF Format Documentation](https://github.com/ggerganov/ggml/blob/master/docs/gguf.md)
+Expected performance with Mistral 7B Q4_K_M:
+- **CPU**: 5-15 tokens/second
+- **GPU (A100)**: 50-100+ tokens/second
+- **Speedup**: 5-10x with GPU acceleration
 
-## License
+## ⚠️ Important Notes
 
-This deployment configuration is provided as-is. Please refer to the licenses of the individual components:
-- llama.cpp: MIT License
-- Mistral 7B: Apache 2.0 License
+1. **Use RWX Storage**: Required for multiple deployments sharing the same model
+2. **Correct Image Tags**: Use `:server` for CPU, `:server-cuda` for GPU
+3. **Unique Labels**: Each deployment needs `accelerator: cpu/gpu` label for proper routing
+4. **Resource Limits**: Set appropriate memory limits based on model size
+5. **Route Timeouts**: Configure 3h timeout for long inference requests
 
-## Support
+## 🐛 Common Issues & Solutions
 
-For issues:
-- **Deployment issues**: Check the troubleshooting section above
-- **llama.cpp issues**: [llama.cpp GitHub Issues](https://github.com/ggerganov/llama.cpp/issues)
-- **OpenShift issues**: Consult your cluster administrator
-- **Model behavior**: [Mistral AI Documentation](https://docs.mistral.ai/)
+### Pod won't start?
+```bash
+oc describe pod <pod-name>
+oc logs <pod-name>
+```
+
+### Service not routing correctly?
+```bash
+oc get endpoints
+oc get svc -o wide
+# Check for proper accelerator labels
+```
+
+### GPU not being used?
+```bash
+oc exec -it deployment/llama-cpp-server-gpu -- nvidia-smi
+```
+
+### Route timing out?
+- Check route annotations for timeout settings
+- Verify network connectivity to cluster
+- Try port-forward: `oc port-forward deployment/llama-cpp-server 8080:8080`
+
+**See [Complete Deployment Guide](COMPLETE-DEPLOYMENT-GUIDE.md) for detailed troubleshooting.**
+
+## 🎓 Learning Resources
+
+- [llama.cpp GitHub](https://github.com/ggerganov/llama.cpp) - Inference engine
+- [OpenShift Documentation](https://docs.openshift.com) - Platform docs
+- [Hugging Face Models](https://huggingface.co/TheBloke) - Pre-quantized models
+- [GGUF Format Guide](https://github.com/ggerganov/ggml/blob/master/docs/gguf.md) - Model format
+
+## 🤝 Contributing
+
+This repository documents a complete deployment journey including all pitfalls encountered and solutions found. Contributions welcome:
+- Report issues
+- Suggest improvements
+- Share deployment experiences
+- Add support for other models
+
+## 📝 License
+
+MIT
+
+## 🙏 Acknowledgments
+
+- **llama.cpp team** for the excellent inference engine
+- **TheBloke** for quantized model distributions
+- **OpenShift AI team** for GPU support
+
+---
+
+**Version**: 1.0  
+**Last Updated**: 2026-01-07  
+**Tested On**: OpenShift 4.14, OpenShift AI 2.25.1

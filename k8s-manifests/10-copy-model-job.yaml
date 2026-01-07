@@ -1,0 +1,33 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: copy-model-to-rwx
+  namespace: andre-llama-cpp
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: copy
+        image: busybox:latest
+        command:
+        - sh
+        - -c
+        - |
+          echo "Copying model from RWO to RWX PVC..."
+          cp -v /source/* /dest/
+          echo "Copy complete!"
+          ls -lh /dest/
+        volumeMounts:
+        - name: source
+          mountPath: /source
+          readOnly: true
+        - name: dest
+          mountPath: /dest
+      volumes:
+      - name: source
+        persistentVolumeClaim:
+          claimName: model-storage
+      - name: dest
+        persistentVolumeClaim:
+          claimName: model-storage-rwx
