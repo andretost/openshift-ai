@@ -33,11 +33,11 @@ Services are working correctly from within the cluster:
 
 ```bash
 # Test GPU service
-oc run test-curl --image=curlimages/curl:latest --rm -i --restart=Never -n andre-llama-cpp \
+oc run test-curl --image=curlimages/curl:latest --rm -i --restart=Never -n <your-namespace> \
   -- curl -sS -m 5 http://llama-cpp-service-gpu:8080/v1/models
 
 # Test CPU service
-oc run test-curl --image=curlimages/curl:latest --rm -i --restart=Never -n andre-llama-cpp \
+oc run test-curl --image=curlimages/curl:latest --rm -i --restart=Never -n <your-namespace> \
   -- curl -sS -m 5 http://llama-cpp-service:8080/v1/models
 ```
 
@@ -54,7 +54,7 @@ You can always test the services from within the cluster using:
 
 ```bash
 # Port-forward to access locally
-oc port-forward -n andre-llama-cpp deployment/llama-cpp-server-gpu 8080:8080
+oc port-forward -n <your-namespace> deployment/llama-cpp-server-gpu 8080:8080
 
 # Then in another terminal
 curl http://localhost:8080/v1/models
@@ -62,12 +62,12 @@ curl http://localhost:8080/v1/models
 
 Or use the web UI by port-forwarding:
 ```bash
-oc port-forward -n andre-llama-cpp deployment/llama-cpp-server-gpu 8080:8080
+oc port-forward -n <your-namespace> deployment/llama-cpp-server-gpu 8080:8080
 # Open browser to http://localhost:8080
 ```
 
 ## Routes
-- **CPU Route**: https://llama-cpp-route-andre-llama-cpp.apps.fusion.isys.hpc.dc.uq.edu.au
-- **GPU Route**: https://llama-cpp-route-gpu-andre-llama-cpp.apps.fusion.isys.hpc.dc.uq.edu.au
+- **CPU Route**: https://llama-cpp-route-<your-namespace>.apps.<your-cluster-domain>
+- **GPU Route**: https://llama-cpp-route-gpu-<your-namespace>.apps.<your-cluster-domain>
 
 These routes work when accessed from a network that has connectivity to the OpenShift cluster's external ingress.

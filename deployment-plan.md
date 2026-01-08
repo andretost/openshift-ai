@@ -1,14 +1,14 @@
 # Mistral 7B Deployment Plan with llama.cpp on OpenShift AI
 
 ## Overview
-Deploy Mistral 7B model using llama.cpp server on OpenShift with GPU acceleration in the `andre-llama-cpp` namespace.
+Deploy Mistral 7B model using llama.cpp server on OpenShift with GPU acceleration in the `<your-namespace>` namespace.
 
 ## Architecture
 
 ```mermaid
 graph TB
     subgraph "OpenShift Cluster"
-        subgraph "Namespace: andre-llama-cpp"
+        subgraph "Namespace: <your-namespace>"
             Route[Route/Ingress]
             Service[Service<br/>llama-cpp-service<br/>Port 8080]
             
@@ -35,7 +35,7 @@ graph TB
 ## Components
 
 ### 1. Namespace
-- **Name**: `andre-llama-cpp`
+- **Name**: `<your-namespace>`
 - **Purpose**: Isolate all llama.cpp resources
 
 ### 2. PersistentVolumeClaim (PVC)
@@ -84,8 +84,8 @@ graph TB
 
 1. **Create Namespace**
    ```bash
-   oc create namespace andre-llama-cpp
-   oc project andre-llama-cpp
+   oc create namespace <your-namespace>
+   oc project <your-namespace>
    ```
 
 2. **Apply PVC**

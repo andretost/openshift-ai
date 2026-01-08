@@ -124,7 +124,7 @@ Quick reference of all pitfalls encountered and solutions found during this depl
 
 ### Check Pod Status
 ```bash
-oc get pods -n <namespace>
+oc get pods -n <your-namespace>
 oc describe pod <pod-name>
 oc logs <pod-name>
 oc logs <pod-name> -c <container-name>  # For init containers
@@ -139,7 +139,7 @@ oc describe svc <service-name>
 
 ### Test from Within Cluster
 ```bash
-oc run test-curl --image=curlimages/curl:latest --rm -i --restart=Never \
+oc run test-curl --image=curlimages/curl:latest --rm -i --restart=Never -n <your-namespace> \
   -- curl -sS http://<service-name>:8080/v1/models
 ```
 

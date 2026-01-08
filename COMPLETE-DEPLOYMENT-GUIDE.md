@@ -123,10 +123,10 @@ metadata:
 ### Step 1: Create Namespace
 ```bash
 # Create namespace
-oc create namespace your-llama-cpp
+oc create namespace <your-namespace>
 
 # Set as current context
-oc project your-llama-cpp
+oc project <your-namespace>
 ```
 
 Or use manifest:
@@ -134,7 +134,7 @@ Or use manifest:
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: your-llama-cpp
+  name: <your-namespace>
   labels:
     app: llama-cpp
 ```
@@ -145,7 +145,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: model-storage-rwx
-  namespace: your-llama-cpp
+  namespace: <your-namespace>
 spec:
   accessModes:
     - ReadWriteMany  # ← Critical for multiple pods
@@ -163,7 +163,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: llama-cpp-config
-  namespace: your-llama-cpp
+  namespace: <your-namespace>
 data:
   MODEL_URL: "https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q4_K_M.gguf"
   MODEL_NAME: "mistral-7b-instruct-v0.2.Q4_K_M.gguf"
@@ -182,7 +182,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: llama-cpp-server
-  namespace: your-llama-cpp
+  namespace: <your-namespace>
   labels:
     app: llama-cpp
     component: server
@@ -293,7 +293,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: llama-cpp-service
-  namespace: your-llama-cpp
+  namespace: <your-namespace>
   labels:
     app: llama-cpp
     component: service
@@ -317,7 +317,7 @@ apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
   name: llama-cpp-route
-  namespace: your-llama-cpp
+  namespace: <your-namespace>
   labels:
     app: llama-cpp
     component: route
@@ -344,7 +344,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: llama-cpp-server-gpu
-  namespace: your-llama-cpp
+  namespace: <your-namespace>
   labels:
     app: llama-cpp
     component: server
@@ -432,7 +432,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: llama-cpp-service-gpu
-  namespace: your-llama-cpp
+  namespace: <your-namespace>
   labels:
     app: llama-cpp
     component: service
@@ -456,7 +456,7 @@ apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
   name: llama-cpp-route-gpu
-  namespace: your-llama-cpp
+  namespace: <your-namespace>
   labels:
     app: llama-cpp
     component: route
@@ -615,11 +615,11 @@ spec:
 ### 1. Check Pod Status
 ```bash
 # View all pods
-oc get pods -n your-llama-cpp
+oc get pods -n <your-namespace>
 
 # Check specific pod logs
-oc logs -f deployment/llama-cpp-server
-oc logs -f deployment/llama-cpp-server-gpu
+oc logs -f deployment/llama-cpp-server -n <your-namespace>
+oc logs -f deployment/llama-cpp-server-gpu -n <your-namespace>
 
 # Describe pod for events
 oc describe pod <pod-name>
@@ -628,7 +628,7 @@ oc describe pod <pod-name>
 ### 2. Verify Service Endpoints
 ```bash
 # Check service endpoints
-oc get endpoints -n your-llama-cpp
+oc get endpoints -n <your-namespace>
 
 # Should show different IPs for CPU and GPU services
 # CPU service should only point to CPU pod
@@ -649,7 +649,7 @@ oc run test-curl --image=curlimages/curl:latest --rm -i --restart=Never \
 ### 4. Test External Routes
 ```bash
 # Get route URLs
-oc get routes -n your-llama-cpp
+oc get routes -n <your-namespace>
 
 # Test CPU route
 CPU_ROUTE=$(oc get route llama-cpp-route -o jsonpath='{.spec.host}')
@@ -797,7 +797,7 @@ oc logs -n openshift-ingress deployment/router-default
 ### Out of Memory
 ```bash
 # Check memory usage
-oc adm top pods -n your-llama-cpp
+oc adm top pods -n <your-namespace>
 
 # Check pod events for OOMKilled
 oc get events --field-selector involvedObject.name=<pod-name>

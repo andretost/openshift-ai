@@ -14,14 +14,14 @@ You now have **two separate deployments** of Mistral 7B running on OpenShift, al
 ## 🌐 Access URLs
 
 ### CPU Deployment (Web UI & API)
-**URL**: https://llama-cpp-route-andre-llama-cpp.apps.fusion.isys.hpc.dc.uq.edu.au
+**URL**: https://llama-cpp-route-<your-namespace>.apps.<your-cluster-domain>
 
 - **Web UI**: Open in browser for interactive chat
 - **API Endpoint**: Use for programmatic access
 - **Performance**: ~18-20 tokens/second
 
 ### GPU Deployment (Web UI & API)
-**URL**: https://llama-cpp-route-gpu-andre-llama-cpp.apps.fusion.isys.hpc.dc.uq.edu.au
+**URL**: https://llama-cpp-route-gpu-<your-namespace>.apps.<your-cluster-domain>
 
 - **Web UI**: Open in browser for interactive chat
 - **API Endpoint**: Use for programmatic access
@@ -32,21 +32,21 @@ You now have **two separate deployments** of Mistral 7B running on OpenShift, al
 
 ### Access Web UI
 Simply open either URL in your browser:
-- **CPU**: https://llama-cpp-route-andre-llama-cpp.apps.fusion.isys.hpc.dc.uq.edu.au
-- **GPU**: https://llama-cpp-route-gpu-andre-llama-cpp.apps.fusion.isys.hpc.dc.uq.edu.au
+- **CPU**: https://llama-cpp-route-<your-namespace>.apps.<your-cluster-domain>
+- **GPU**: https://llama-cpp-route-gpu-<your-namespace>.apps.<your-cluster-domain>
 
 ### Test API Endpoints
 
 #### CPU Endpoint
 ```bash
-curl -k -X POST https://llama-cpp-route-andre-llama-cpp.apps.fusion.isys.hpc.dc.uq.edu.au/completion \
+curl -k -X POST https://llama-cpp-route-<your-namespace>.apps.<your-cluster-domain>/completion \
   -H "Content-Type: application/json" \
   -d '{"prompt":"Explain AI in simple terms:","n_predict":100}'
 ```
 
 #### GPU Endpoint
 ```bash
-curl -k -X POST https://llama-cpp-route-gpu-andre-llama-cpp.apps.fusion.isys.hpc.dc.uq.edu.au/completion \
+curl -k -X POST https://llama-cpp-route-gpu-<your-namespace>.apps.<your-cluster-domain>/completion \
   -H "Content-Type: application/json" \
   -d '{"prompt":"Explain AI in simple terms:","n_predict":100}'
 ```
@@ -58,7 +58,7 @@ Run the same prompt on both endpoints and compare the `predicted_per_second` val
 ## 📦 Deployed Resources
 
 ### Namespace
-- **Name**: `andre-llama-cpp`
+- **Name**: `<your-namespace>`
 - **Purpose**: Isolated environment for both deployments
 
 ### Storage
@@ -82,25 +82,25 @@ Run the same prompt on both endpoints and compare the `predicted_per_second` val
 
 ### Check Pod Status
 ```bash
-oc get pods -n andre-llama-cpp
+oc get pods -n <your-namespace>
 ```
 
 ### View Logs
 ```bash
 # CPU deployment
-oc logs -n andre-llama-cpp -l app=llama-cpp,accelerator!=gpu -f
+oc logs -n <your-namespace> -l app=llama-cpp,accelerator!=gpu -f
 
 # GPU deployment
-oc logs -n andre-llama-cpp -l app=llama-cpp,accelerator=gpu -f
+oc logs -n <your-namespace> -l app=llama-cpp,accelerator=gpu -f
 ```
 
 ### Check GPU Usage
 ```bash
 # Get GPU pod name
-GPU_POD=$(oc get pods -n andre-llama-cpp -l accelerator=gpu -o jsonpath='{.items[0].metadata.name}')
+GPU_POD=$(oc get pods -n <your-namespace> -l accelerator=gpu -o jsonpath='{.items[0].metadata.name}')
 
 # View GPU info from logs
-oc logs -n andre-llama-cpp $GPU_POD | grep -i "cuda\|gpu"
+oc logs -n <your-namespace> $GPU_POD | grep -i "cuda\|gpu"
 ```
 
 ## 📈 Performance Comparison
@@ -117,12 +117,12 @@ oc logs -n andre-llama-cpp $GPU_POD | grep -i "cuda\|gpu"
 
 ```bash
 # CPU benchmark
-time curl -k -s -X POST https://llama-cpp-route-andre-llama-cpp.apps.fusion.isys.hpc.dc.uq.edu.au/completion \
+time curl -k -s -X POST https://llama-cpp-route-<your-namespace>.apps.<your-cluster-domain>/completion \
   -H "Content-Type: application/json" \
   -d '{"prompt":"Write a story about AI:","n_predict":200}' > /dev/null
 
 # GPU benchmark
-time curl -k -s -X POST https://llama-cpp-route-gpu-andre-llama-cpp.apps.fusion.isys.hpc.dc.uq.edu.au/completion \
+time curl -k -s -X POST https://llama-cpp-route-gpu-<your-namespace>.apps.<your-cluster-domain>/completion \
   -H "Content-Type: application/json" \
   -d '{"prompt":"Write a story about AI:","n_predict":200}' > /dev/null
 ```
@@ -132,31 +132,31 @@ time curl -k -s -X POST https://llama-cpp-route-gpu-andre-llama-cpp.apps.fusion.
 ### Scale Deployments
 ```bash
 # Scale CPU deployment
-oc scale deployment llama-cpp-server -n andre-llama-cpp --replicas=0  # Stop
-oc scale deployment llama-cpp-server -n andre-llama-cpp --replicas=1  # Start
+oc scale deployment llama-cpp-server -n <your-namespace> --replicas=0  # Stop
+oc scale deployment llama-cpp-server -n <your-namespace> --replicas=1  # Start
 
 # Scale GPU deployment
-oc scale deployment llama-cpp-server-gpu -n andre-llama-cpp --replicas=0  # Stop
-oc scale deployment llama-cpp-server-gpu -n andre-llama-cpp --replicas=1  # Start
+oc scale deployment llama-cpp-server-gpu -n <your-namespace> --replicas=0  # Stop
+oc scale deployment llama-cpp-server-gpu -n <your-namespace> --replicas=1  # Start
 ```
 
 ### Update Configuration
 ```bash
 # Edit ConfigMap
-oc edit configmap llama-cpp-config -n andre-llama-cpp
+oc edit configmap llama-cpp-config -n <your-namespace>
 
 # Restart deployments to apply changes
-oc rollout restart deployment llama-cpp-server -n andre-llama-cpp
-oc rollout restart deployment llama-cpp-server-gpu -n andre-llama-cpp
+oc rollout restart deployment llama-cpp-server -n <your-namespace>
+oc rollout restart deployment llama-cpp-server-gpu -n <your-namespace>
 ```
 
 ### View Resource Usage
 ```bash
 # CPU and memory usage
-oc adm top pods -n andre-llama-cpp
+oc adm top pods -n <your-namespace>
 
 # Detailed resource info
-oc describe pod -n andre-llama-cpp -l app=llama-cpp
+oc describe pod -n <your-namespace> -l app=llama-cpp
 ```
 
 ## 🔧 Troubleshooting
@@ -164,20 +164,20 @@ oc describe pod -n andre-llama-cpp -l app=llama-cpp
 ### Pod Not Starting
 ```bash
 # Check events
-oc get events -n andre-llama-cpp --sort-by='.lastTimestamp'
+oc get events -n <your-namespace> --sort-by='.lastTimestamp'
 
 # Describe pod
-oc describe pod -n andre-llama-cpp -l app=llama-cpp
+oc describe pod -n <your-namespace> -l app=llama-cpp
 ```
 
 ### API Not Responding
 ```bash
 # Check if pods are ready
-oc get pods -n andre-llama-cpp
+oc get pods -n <your-namespace>
 
 # Test health endpoint
-curl -k https://llama-cpp-route-andre-llama-cpp.apps.fusion.isys.hpc.dc.uq.edu.au/health
-curl -k https://llama-cpp-route-gpu-andre-llama-cpp.apps.fusion.isys.hpc.dc.uq.edu.au/health
+curl -k https://llama-cpp-route-<your-namespace>.apps.<your-cluster-domain>/health
+curl -k https://llama-cpp-route-gpu-<your-namespace>.apps.<your-cluster-domain>/health
 ```
 
 ### GPU Not Being Used
@@ -186,7 +186,7 @@ curl -k https://llama-cpp-route-gpu-andre-llama-cpp.apps.fusion.isys.hpc.dc.uq.e
 oc describe node | grep -A 5 "nvidia.com/gpu"
 
 # Verify GPU in pod logs
-oc logs -n andre-llama-cpp -l accelerator=gpu | grep "CUDA"
+oc logs -n <your-namespace> -l accelerator=gpu | grep "CUDA"
 ```
 
 ## 📚 Additional Resources
@@ -208,7 +208,7 @@ oc logs -n andre-llama-cpp -l accelerator=gpu | grep "CUDA"
 
 ```bash
 # Quick status check
-oc get pods,svc,route -n andre-llama-cpp
+oc get pods,svc,route -n <your-namespace>
 ```
 
 Both deployments are **running and ready** for use! 🚀
@@ -216,6 +216,6 @@ Both deployments are **running and ready** for use! 🚀
 ---
 
 **Model**: Mistral 7B Instruct v0.2 (Q4_K_M)  
-**Namespace**: andre-llama-cpp  
-**Cluster**: fusion.isys.hpc.dc.uq.edu.au  
+**Namespace**: <your-namespace>
+**Cluster**: <your-cluster-domain>
 **Deployment Date**: 2026-01-07

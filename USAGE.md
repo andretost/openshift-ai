@@ -16,23 +16,23 @@ This guide explains how to interact with your deployed Mistral 7B model running 
 
 ```bash
 # Check pod status
-oc get pods -n andre-llama-cpp
+oc get pods -n <your-namespace>
 
 # Watch pod startup (especially useful during model download)
-oc get pods -n andre-llama-cpp -w
+oc get pods -n <your-namespace> -w
 
 # Check init container logs (model download)
-oc logs -n andre-llama-cpp -l app=llama-cpp -c model-downloader -f
+oc logs -n <your-namespace> -l app=llama-cpp -c model-downloader -f
 
 # Check main container logs
-oc logs -n andre-llama-cpp -l app=llama-cpp -c llama-cpp-server -f
+oc logs -n <your-namespace> -l app=llama-cpp -c llama-cpp-server -f
 ```
 
 ### 2. Get Route URL
 
 ```bash
 # Get the external URL
-ROUTE_URL=$(oc get route llama-cpp-route -n andre-llama-cpp -o jsonpath='{.spec.host}')
+ROUTE_URL=$(oc get route llama-cpp-route -n <your-namespace> -o jsonpath='{.spec.host}')
 echo "API URL: https://${ROUTE_URL}"
 ```
 
@@ -253,13 +253,13 @@ for chunk in stream:
 You can modify the ConfigMap to change default parameters:
 
 ```bash
-oc edit configmap llama-cpp-config -n andre-llama-cpp
+oc edit configmap llama-cpp-config -n <your-namespace>
 ```
 
 After editing, restart the deployment:
 
 ```bash
-oc rollout restart deployment llama-cpp-server -n andre-llama-cpp
+oc rollout restart deployment llama-cpp-server -n <your-namespace>
 ```
 
 ### Monitoring GPU Usage
@@ -268,23 +268,23 @@ Check GPU utilization:
 
 ```bash
 # Get pod name
-POD_NAME=$(oc get pods -n andre-llama-cpp -l app=llama-cpp -o jsonpath='{.items[0].metadata.name}')
+POD_NAME=$(oc get pods -n <your-namespace> -l app=llama-cpp -o jsonpath='{.items[0].metadata.name}')
 
 # Check GPU usage (if nvidia-smi is available in the container)
-oc exec -n andre-llama-cpp ${POD_NAME} -- nvidia-smi
+oc exec -n <your-namespace> ${POD_NAME} -- nvidia-smi
 ```
 
 ### Viewing Logs
 
 ```bash
 # Follow logs in real-time
-oc logs -n andre-llama-cpp -l app=llama-cpp -c llama-cpp-server -f
+oc logs -n <your-namespace> -l app=llama-cpp -c llama-cpp-server -f
 
 # View last 100 lines
-oc logs -n andre-llama-cpp -l app=llama-cpp -c llama-cpp-server --tail=100
+oc logs -n <your-namespace> -l app=llama-cpp -c llama-cpp-server --tail=100
 
 # View logs from init container (model download)
-oc logs -n andre-llama-cpp -l app=llama-cpp -c model-downloader
+oc logs -n <your-namespace> -l app=llama-cpp -c model-downloader
 ```
 
 ### Scaling
@@ -293,10 +293,10 @@ The deployment is set to 1 replica by default. To scale:
 
 ```bash
 # Scale up (not recommended for GPU workloads unless you have multiple GPUs)
-oc scale deployment llama-cpp-server -n andre-llama-cpp --replicas=2
+oc scale deployment llama-cpp-server -n <your-namespace> --replicas=2
 
 # Scale down
-oc scale deployment llama-cpp-server -n andre-llama-cpp --replicas=0
+oc scale deployment llama-cpp-server -n <your-namespace> --replicas=0
 ```
 
 ## Troubleshooting
@@ -305,12 +305,12 @@ oc scale deployment llama-cpp-server -n andre-llama-cpp --replicas=0
 
 Check events:
 ```bash
-oc get events -n andre-llama-cpp --sort-by='.lastTimestamp'
+oc get events -n <your-namespace> --sort-by='.lastTimestamp'
 ```
 
 Check pod description:
 ```bash
-oc describe pod -n andre-llama-cpp -l app=llama-cpp
+oc describe pod -n <your-namespace> -l app=llama-cpp
 ```
 
 ### Model Download Issues
@@ -319,10 +319,10 @@ If the init container fails to download the model:
 
 ```bash
 # Check init container logs
-oc logs -n andre-llama-cpp -l app=llama-cpp -c model-downloader
+oc logs -n <your-namespace> -l app=llama-cpp -c model-downloader
 
 # Delete the pod to retry
-oc delete pod -n andre-llama-cpp -l app=llama-cpp
+oc delete pod -n <your-namespace> -l app=llama-cpp
 ```
 
 ### GPU Not Available
@@ -345,7 +345,7 @@ If you encounter OOM errors, you may need to:
 
 For long-running inference, ensure the route timeout is sufficient:
 ```bash
-oc annotate route llama-cpp-route -n andre-llama-cpp \
+oc annotate route llama-cpp-route -n <your-namespace> \
   haproxy.router.openshift.io/timeout=3h --overwrite
 ```
 
@@ -380,10 +380,10 @@ To remove the deployment:
 
 ```bash
 # Delete all resources
-oc delete namespace andre-llama-cpp
+oc delete namespace <your-namespace>
 
 # Or delete individual resources
-oc delete -f k8s-manifests/ -n andre-llama-cpp
+oc delete -f k8s-manifests/ -n <your-namespace>
 ```
 
 ## Additional Resources
